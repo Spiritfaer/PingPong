@@ -1,0 +1,5 @@
+﻿  Core.cpp
+  main.cpp
+c:\users\user.000\source\repos\test_ping_pong\ping_pong\ping_pong\main.cpp(16): warning C4244: аргумент: преобразование "int" в "float", возможна потеря данных
+  Создание кода...
+  Ping_Pong.vcxproj -> C:\Users\User.000\source\repos\TEST_ping_pong\Ping_Pong\x64\Debug\Ping_Pong.exe
