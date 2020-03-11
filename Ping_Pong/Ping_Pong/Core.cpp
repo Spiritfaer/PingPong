@@ -4,6 +4,7 @@
 
 Core::Core()
 {
+	db = DB;
 	srand(static_cast<uint32_t>(std::time(nullptr)));
 	
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
@@ -36,15 +37,18 @@ Core::Core()
 	if (TTF_Init() == -1) {
 		throw std::exception("ERROR! TTF_INIT\n");
 	}
-	font_score = TTF_OpenFont("O.K.Retro.otf", FONT_SIZE_SCORE);
+	font_score = TTF_OpenFont(FONT_PATH, FONT_SIZE_SCORE);
 	if (!font_score) {
 		throw std::exception("ERROR! TTF_OpenFont");
 	}
-	font_menu = TTF_OpenFont("O.K.Retro.otf", FONT_SIZE_MENU);
+	font_menu = TTF_OpenFont(FONT_PATH, FONT_SIZE_MENU);
 	if (!font_menu) {
 		throw std::exception("ERROR! TTF_OpenFont");
 	}
-
+	font_info = TTF_OpenFont(FONT_PATH, FONT_SIZE_INFO);
+	if (!font_info) {
+		throw std::exception("ERROR! TTF_OpenFont");
+	}
 	//---------------------------------------------- AUDIO INIT --------------------
 	int		initted;
 	int		flags = MIX_INIT_OGG;
@@ -56,7 +60,7 @@ Core::Core()
 		printf("SDL_mixer Error: %s\n", Mix_GetError());
 	load_audio();
 	//------------------------------------------------------------------------------
-	my_menu = make_menu(font_menu);
+	my_menu = make_menu(font_menu, font_info);
 	if (!my_menu)
 		throw std::exception("My menu init error!");
 
@@ -65,7 +69,6 @@ Core::Core()
 
 Core::~Core()
 {
-	std::cout << "DB INFO : ~Core()" << std::endl;
 	delete my_menu;
 	TTF_CloseFont(font_score);
 	TTF_CloseFont(font_menu);
@@ -103,6 +106,9 @@ void Core::run()
 		else if (status == AppStatus::GAME_TWO_PLAYERS) {
 			game();
 		}
+		else if (status == AppStatus::END) {
+			end();
+		}
 	} while (status != AppStatus::EXIT);
 }
 
@@ -112,7 +118,7 @@ void Core::menu()
 
 	while (status == AppStatus::MENU) {
 		refresh_event();
-		fps.tick(true);
+		fps.tick(db);
 		if (is_exit()) {
 			status = AppStatus::EXIT;
 			return;
@@ -131,9 +137,9 @@ void Core::game()
 	else if (status == AppStatus::GAME_TWO_PLAYERS) {
 		init_two_game();
 	}
-	while (true) {
+	while (status == AppStatus::GAME || status == AppStatus::GAME_TWO_PLAYERS) {
 		refresh_event();
-		fps.tick(true);
+		fps.tick(db);
 		if (event.type == SDL_QUIT) {
 			status = AppStatus::EXIT;
 			break;
@@ -142,12 +148,51 @@ void Core::game()
 			status = AppStatus::MENU;
 			break;
 		}
+		
 		clear_window();
 		refresh_fild();
 		refresh_obj();
 		refresh_window();
 	}
 	objects.clear();
+}
+
+void Core::end()
+{
+	clear_window();
+	draw_end();
+	while (status == AppStatus::END) {
+		refresh_window();
+		refresh_event();
+	}
+}
+
+bool Core::is_end()
+{
+	for (int32_t i = 0, max = objects.size(); i < max; ++i) {
+		if (dynamic_cast<Player*>(objects[i].get()) &&
+			dynamic_cast<Player*>(objects[i].get())->get_score() == SCORE_TO_WIN) {
+
+			if (status == AppStatus::GAME) {
+				if (i == 1) {
+					status_end = EndStatus::WIN;
+				}
+				else if (i == 2) {
+					status_end = EndStatus::LOSE;
+				}
+			}
+			else if (status == AppStatus::GAME_TWO_PLAYERS) {
+				if (i == 1) {
+					status_end = EndStatus::WIN_ONE;
+				}
+				else if (i == 2) {
+					status_end = EndStatus::WIN_TWO;
+				}
+			}
+			return true;
+		}
+	}
+	return false;
 }
 
 void *Core::getPixels()
@@ -186,6 +231,10 @@ void Core::refresh_event()
 			}
 		}	
 	}
+	else if (status == AppStatus::END) {
+		SDL_WaitEvent(&event);
+		status = AppStatus::MENU;
+	}
 	else
 		SDL_PollEvent(&event);
 }
@@ -213,6 +262,12 @@ void Core::refresh_fild(int32_t icolor)
 void Core::refresh_obj()
 {
 	check_collision();
+	if (is_end()) {
+		status = AppStatus::END;
+		end();
+		return;
+	}
+
 	for (int i = 0; i < objects.size(); ++i) {
 		if (dynamic_cast<Bot*>(objects[i].get()))
 			dynamic_cast<Bot*>(objects[i].get())->refresh_dest(dynamic_cast<Boll*>(objects[0].get()));
@@ -298,9 +353,24 @@ void Core::draw_score(int32_t icolor)
 
 void Core::draw_menu()
 {
-	static SDL_Rect dest_play_txt{ (screen.w / 2) - (my_menu->play_txt[0]->w / 2), 10, 0, 0 };
-	static SDL_Rect dest_two_play_txt{ (screen.w / 2) - (my_menu->two_play_txt[0]->w / 2), 50, 0, 0 };
-	static SDL_Rect dest_exit_txt{ (screen.w / 2) - (my_menu->exit_txt[0]->w / 2), 100, 0, 0 };
+	static SDL_Rect dest_play_txt{
+		(screen.w / 2) - (my_menu->play_txt[0]->w / 2),
+		(screen.h / 2) - (my_menu->play_txt[0]->h * 3) + FONT_SIZE_MENU,
+		0,
+		0
+	};
+	static SDL_Rect dest_two_play_txt{
+		(screen.w / 2) - (my_menu->two_play_txt[0]->w / 2),
+		(screen.h / 2) - (my_menu->two_play_txt[0]->h / 2),
+		0,
+		0
+	};
+	static SDL_Rect dest_exit_txt{
+		(screen.w / 2) - (my_menu->exit_txt[0]->w / 2),
+		(screen.h / 2) + (my_menu->exit_txt[0]->h * 2) - FONT_SIZE_MENU,
+		0,
+		0
+	};
 
 	if (menu_flag == 0) {
 		SDL_BlitSurface(my_menu->play_txt[1], NULL, canvas, &dest_play_txt);
@@ -322,6 +392,57 @@ void Core::draw_menu()
 	else {
 		SDL_BlitSurface(my_menu->exit_txt[0], NULL, canvas, &dest_exit_txt);
 	}
+}
+
+void Core::draw_end()
+{
+	static SDL_Rect dest_end_author_txt {
+		(screen.w / 2) - (my_menu->end_author->w / 2),
+		screen.h - my_menu->end_author->h - FONT_SIZE_MENU,
+		0,
+		0
+	};
+
+	static SDL_Rect dest_end_win_txt {
+		(screen.w / 2) - (my_menu->end_win->w / 2),
+		(screen.h / 2) - (my_menu->end_win->h / 2),
+		0,
+		0
+	};
+
+	static SDL_Rect dest_end_lose_txt {
+		(screen.w / 2) - (my_menu->end_lose->w / 2),
+		(screen.h / 2) - (my_menu->end_lose->h / 2),
+		0,
+		0
+	};
+
+	static SDL_Rect dest_end_win_one_txt {
+		(screen.w / 2) - (my_menu->end_win_one->w / 2),
+		(screen.h / 2) - (my_menu->end_win_one->h / 2),
+		0,
+		0
+	};
+
+	switch (status_end)
+	{
+	case EndStatus::WIN:
+		SDL_BlitSurface(my_menu->end_win, NULL, canvas, &dest_end_win_txt);
+		break;
+	case EndStatus::LOSE:
+		SDL_BlitSurface(my_menu->end_lose, NULL, canvas, &dest_end_lose_txt);
+		break;
+	case EndStatus::WIN_ONE:
+		SDL_BlitSurface(my_menu->end_win_one, NULL, canvas, &dest_end_win_one_txt);
+		break;
+	case EndStatus::WIN_TWO:
+		SDL_BlitSurface(my_menu->end_win_two, NULL, canvas, &dest_end_win_one_txt);
+		break;
+	default:
+		break;
+	}
+
+	SDL_BlitSurface(my_menu->end_author, NULL, canvas, &dest_end_author_txt);
 }
 
 void Core::refresh_scope(int32_t icolor)
@@ -453,7 +574,7 @@ void Core::play_audio(Mix_Chunk * chunk)
 	}
 }
 
-Menu * Core::make_menu(TTF_Font * font_menu)
+Menu * Core::make_menu(TTF_Font * font_menu, TTF_Font * font_info)
 {
-	return new Menu{ font_menu };
+	return new Menu{ font_menu, font_info };
 }

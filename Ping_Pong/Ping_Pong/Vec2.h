@@ -1,7 +1,8 @@
+#pragma once
+
 #include <stdint.h>
 #include <math.h>
 #include <exception>
-#pragma once
 
 class Vec2
 {

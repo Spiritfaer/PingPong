@@ -2,7 +2,6 @@
 #include <sstream>
 #include <stdint.h>
 #include <SDL.h>
-
 #include "Core.h"
 #include "Obj.h"
 #include "Boll.h"

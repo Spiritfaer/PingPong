@@ -1,8 +1,14 @@
 #include "vec2.h"
 
-Vec2::Vec2(): x(0.f), y(0.f) {}
-Vec2::Vec2(float in) : x(in), y(in) {}
-Vec2::Vec2(float in_x, float in_y) : x(in_x), y(in_y) {}
+Vec2::Vec2()
+	: x(0.f), y(0.f) {}
+
+Vec2::Vec2(float in)
+	: x(in), y(in) {}
+
+Vec2::Vec2(float in_x, float in_y)
+	: x(in_x), y(in_y) {}
+
 Vec2::~Vec2() {}
 
 float Vec2::length()

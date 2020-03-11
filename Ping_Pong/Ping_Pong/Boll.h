@@ -1,11 +1,10 @@
 #pragma once
+
 #include "Obj.h"
 #include "Vec2.h"
 
-
 const float MIN_WEDGE = -0.65f;
 const float MAX_WEDGE = std::abs(-0.65f);
-
 
 class Boll : public Obj
 {

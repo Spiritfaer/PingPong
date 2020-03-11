@@ -1,6 +1,7 @@
+#pragma once
+
 #include <SDL.h>
 
-#pragma once
 class FrameRate
 {
 public:
@@ -15,4 +16,3 @@ private:
 
 	void showFPS(uint32_t t);
 };
-

@@ -1,7 +1,7 @@
 #include "Player.h"
 
-Player::Player(uint16_t x, uint16_t y, SDL_Scancode up, SDL_Scancode down, int32_t color) :
-	Obj(x, y, 15, 100, color)
+Player::Player(uint16_t x, uint16_t y, SDL_Scancode up, SDL_Scancode down, int32_t color)
+	: Obj(x, y, 15, 100, color)
 {
 	score = 0;
 	speed = 8;

@@ -1,19 +1,13 @@
 #include "Obj.h"
 
-
-
-Obj::Obj(uint16_t in_x, uint16_t in_y, uint16_t in_w, uint16_t in_h, int32_t color, float in_speed) :
-	x(in_x), y(in_y), w(in_w), h(in_h), icolor(color), speed(in_speed)
+Obj::Obj(uint16_t in_x, uint16_t in_y, uint16_t in_w, uint16_t in_h, int32_t color, float in_speed)
+	: x(in_x), y(in_y), w(in_w), h(in_h), icolor(color), speed(in_speed)
 {}
 
 Obj::Obj(const Obj & ref)
 	: x(ref.x), y(ref.y), w(ref.w), h(ref.h), icolor(ref.icolor), speed(ref.speed){}
 
-
-Obj::~Obj()
-{
-	std::cout << "DB INFO : ~Obj()" << std::endl;
-}
+Obj::~Obj() {}
 
 void Obj::obj_draw(const SDL_Rect & screen, int32_t * pixels)
 {

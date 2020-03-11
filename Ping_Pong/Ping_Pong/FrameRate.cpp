@@ -1,17 +1,13 @@
 #include <iostream>
 #include "FrameRate.h"
 
-
 FrameRate::FrameRate()
 {
 	old_time = SDL_GetTicks();
 	ticks = cur_time = 0;
 }
 
-
-FrameRate::~FrameRate()
-{
-}
+FrameRate::~FrameRate() {}
 
 bool FrameRate::tick(bool db)
 {
