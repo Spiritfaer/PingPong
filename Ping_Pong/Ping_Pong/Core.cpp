@@ -30,14 +30,20 @@ Core::Core()
 	canvas = SDL_CreateRGBSurface(0, screen.w, screen.h, 32,
 		0, 0, 0, 0);
 	texture = SDL_CreateTextureFromSurface(render, canvas);
+
+	//---------------------------------------------- FONT INIT --------------------
+
 	if (TTF_Init() == -1) {
 		throw std::exception("ERROR! TTF_INIT\n");
 	}
-	font = TTF_OpenFont("O.K.Retro.otf", FONT_SIZE);
-	if (!font) {
+	font_score = TTF_OpenFont("O.K.Retro.otf", FONT_SIZE_SCORE);
+	if (!font_score) {
 		throw std::exception("ERROR! TTF_OpenFont");
 	}
-
+	font_menu = TTF_OpenFont("O.K.Retro.otf", FONT_SIZE_MENU);
+	if (!font_menu) {
+		throw std::exception("ERROR! TTF_OpenFont");
+	}
 
 	//---------------------------------------------- AUDIO INIT --------------------
 	int		initted;
@@ -49,12 +55,20 @@ Core::Core()
 	if ((initted & flags) != flags)
 		printf("SDL_mixer Error: %s\n", Mix_GetError());
 	load_audio();
-}
+	//------------------------------------------------------------------------------
+	my_menu = make_menu(font_menu);
+	if (!my_menu)
+		throw std::exception("My menu init error!");
 
+	status = AppStatus::MENU;
+}
 
 Core::~Core()
 {
 	std::cout << "DB INFO : ~Core()" << std::endl;
+	delete my_menu;
+	TTF_CloseFont(font_score);
+	TTF_CloseFont(font_menu);
 	if (TTF_WasInit())
 		TTF_Quit();
 	if (beeep)
@@ -77,6 +91,65 @@ Core::~Core()
 	SDL_Quit();
 }
 
+void Core::run()
+{
+	do {
+		if (status == AppStatus::MENU) {
+			menu();
+		}
+		else if (status == AppStatus::GAME) {
+			game();
+		}
+		else if (status == AppStatus::GAME_TWO_PLAYERS) {
+			game();
+		}
+	} while (status != AppStatus::EXIT);
+}
+
+void Core::menu()
+{
+	menu_flag = 0;
+
+	while (status == AppStatus::MENU) {
+		refresh_event();
+		fps.tick(true);
+		if (is_exit()) {
+			status = AppStatus::EXIT;
+			return;
+		}
+		clear_window();
+		draw_menu();
+		refresh_window();
+	}
+}
+
+void Core::game()
+{
+	if (status == AppStatus::GAME) {
+		init_one_game();
+	}
+	else if (status == AppStatus::GAME_TWO_PLAYERS) {
+		init_two_game();
+	}
+	while (true) {
+		refresh_event();
+		fps.tick(true);
+		if (event.type == SDL_QUIT) {
+			status = AppStatus::EXIT;
+			break;
+		}
+		if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+			status = AppStatus::MENU;
+			break;
+		}
+		clear_window();
+		refresh_fild();
+		refresh_obj();
+		refresh_window();
+	}
+	objects.clear();
+}
+
 void *Core::getPixels()
 {
 	return canvas->pixels;
@@ -84,7 +157,37 @@ void *Core::getPixels()
 
 void Core::refresh_event()
 {
-	SDL_PollEvent(&event);
+	if (status == AppStatus::MENU) {
+		SDL_WaitEvent(&event);
+		const Uint8 *state = SDL_GetKeyboardState(nullptr);
+		if (event.type == SDL_KEYDOWN) {
+			play_audio(plop);
+			if (state[SDL_SCANCODE_UP]) {
+				menu_flag = (menu_flag == 0) ? 0 : menu_flag - 1;
+			}
+			if (state[SDL_SCANCODE_DOWN]) {
+				menu_flag = (menu_flag == 2) ? 2 : menu_flag + 1;
+			}
+			if (state[SDL_SCANCODE_RETURN]) {
+				switch (menu_flag)
+				{
+				case 0:
+					status = AppStatus::GAME;
+					break;
+				case 1:
+					status = AppStatus::GAME_TWO_PLAYERS;
+					break;
+				case 2:
+					status = AppStatus::EXIT;
+					break;
+				default:
+					break;
+				}
+			}
+		}	
+	}
+	else
+		SDL_PollEvent(&event);
 }
 
 void Core::refresh_window()
@@ -111,6 +214,8 @@ void Core::refresh_obj()
 {
 	check_collision();
 	for (int i = 0; i < objects.size(); ++i) {
+		if (dynamic_cast<Bot*>(objects[i].get()))
+			dynamic_cast<Bot*>(objects[i].get())->refresh_dest(dynamic_cast<Boll*>(objects[0].get()));
 		objects[i]->move(event, screen.w, screen.h, objects[i]->speed);
 	}
 	for (int i = 0; i < objects.size(); ++i) {
@@ -127,15 +232,41 @@ void Core::refresh_player()
 
 bool Core::is_exit()
 {
-	if (event.type == SDL_QUIT
-		|| event.key.keysym.scancode == SDL_SCANCODE_ESCAPE)
+	if (event.type == SDL_QUIT) {
+		status = AppStatus::EXIT;
 		return true;
+	}
+	if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+		status = AppStatus::MENU;
+	}
 	return false;
 }
 
 void Core::add_new_obj(std::unique_ptr<Obj> ptr)
 {
 	objects.push_back(std::move(ptr));
+}
+
+void Core::init_one_game()
+{
+	std::unique_ptr<Obj> boll(new Boll((screen.w / 2 - 25 / 2), (screen.h / 2 - 25 / 2), 25, 25, 0xFFD600));
+	std::unique_ptr<Obj> player1(new Player(25, (screen.h / 2 - 100 / 2), SDL_SCANCODE_UP, SDL_SCANCODE_DOWN, 0xFFFFFF));
+	std::unique_ptr<Obj> bot(new Bot(screen.w - (25 + 15), (screen.h / 2 - 100 / 2), SDL_SCANCODE_W, SDL_SCANCODE_S, 0xFFFFFF));
+	add_new_obj(std::move(boll));
+	add_new_obj(std::move(player1));
+	add_new_obj(std::move(bot));
+	refresh_player();
+}
+
+void Core::init_two_game()
+{
+	std::unique_ptr<Obj> boll(new Boll((screen.w / 2 - 25 / 2), (screen.h / 2 - 25 / 2), 25, 25, 0xFFD600));
+	std::unique_ptr<Obj> player1(new Player(25, (screen.h / 2 - 100 / 2), SDL_SCANCODE_W, SDL_SCANCODE_S, 0xFFFFFF));
+	std::unique_ptr<Obj> player2(new Player(screen.w - (25 + 15), (screen.h / 2 - 100 / 2), SDL_SCANCODE_UP, SDL_SCANCODE_DOWN, 0xFFFFFF));
+	add_new_obj(std::move(boll));
+	add_new_obj(std::move(player1));
+	add_new_obj(std::move(player2));
+	refresh_player();
 }
 
 void Core::draw_midle_line(int32_t icolor)
@@ -154,8 +285,6 @@ void Core::draw_midle_line(int32_t icolor)
 	}
 }
 
-
-
 void Core::draw_score(int32_t icolor)
 {
 	if (pl1_score == nullptr || pl2_score == nullptr)
@@ -165,6 +294,34 @@ void Core::draw_score(int32_t icolor)
 
 	SDL_Rect dest_pl2{ (screen.w / 4 * 3) - (pl2_score->w / 2), 10, 0, 0 };
 	SDL_BlitSurface(pl2_score, NULL, canvas, &dest_pl2);
+}
+
+void Core::draw_menu()
+{
+	static SDL_Rect dest_play_txt{ (screen.w / 2) - (my_menu->play_txt[0]->w / 2), 10, 0, 0 };
+	static SDL_Rect dest_two_play_txt{ (screen.w / 2) - (my_menu->two_play_txt[0]->w / 2), 50, 0, 0 };
+	static SDL_Rect dest_exit_txt{ (screen.w / 2) - (my_menu->exit_txt[0]->w / 2), 100, 0, 0 };
+
+	if (menu_flag == 0) {
+		SDL_BlitSurface(my_menu->play_txt[1], NULL, canvas, &dest_play_txt);
+	}
+	else {
+		SDL_BlitSurface(my_menu->play_txt[0], NULL, canvas, &dest_play_txt);
+	}
+
+	if (menu_flag == 1) {
+		SDL_BlitSurface(my_menu->two_play_txt[1], NULL, canvas, &dest_two_play_txt);
+	}
+	else {
+		SDL_BlitSurface(my_menu->two_play_txt[0], NULL, canvas, &dest_two_play_txt);
+	}
+
+	if (menu_flag == 2) {
+		SDL_BlitSurface(my_menu->exit_txt[1], NULL, canvas, &dest_exit_txt);
+	}
+	else {
+		SDL_BlitSurface(my_menu->exit_txt[0], NULL, canvas, &dest_exit_txt);
+	}
 }
 
 void Core::refresh_scope(int32_t icolor)
@@ -185,10 +342,10 @@ void Core::refresh_scope(int32_t icolor)
 
 	SDL_Color color{ 0xFF, 0xFF, 0xFF };
 
-	if (!(pl1_score = TTF_RenderText_Blended(font, pl1_score_str.c_str(), color))) {
+	if (!(pl1_score = TTF_RenderText_Blended(font_score, pl1_score_str.c_str(), color))) {
 		throw std::exception("Render TTF error!");
 	}
-	if (!(pl2_score = TTF_RenderText_Blended(font, pl2_score_str.c_str(), color))) {
+	if (!(pl2_score = TTF_RenderText_Blended(font_score, pl2_score_str.c_str(), color))) {
 		throw std::exception("Render TTF error!");
 	}
 }
@@ -203,12 +360,14 @@ void Core::check_collision()
 	{
 	case Side::LEFT:
 		pl2->up_score();
+		pl1->speed_up();
 		refresh_scope();
 		boll->reset(screen.w, screen.h);
 		play_audio(peeeeeep);
 		break;
 	case Side::RIGHT:
 		pl1->up_score();
+		pl2->speed_up();
 		refresh_scope();
 		boll->reset(screen.w, screen.h);
 		play_audio(peeeeeep);
@@ -292,4 +451,9 @@ void Core::play_audio(Mix_Chunk * chunk)
 		// may be critical error, or maybe just no channels were free.
 		// you could allocated another channel in that case...
 	}
+}
+
+Menu * Core::make_menu(TTF_Font * font_menu)
+{
+	return new Menu{ font_menu };
 }

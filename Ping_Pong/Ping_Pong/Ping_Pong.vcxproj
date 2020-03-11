@@ -128,17 +128,21 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Boll.cpp" />
+    <ClCompile Include="Bot.cpp" />
     <ClCompile Include="Core.cpp" />
     <ClCompile Include="FrameRate.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Menu.cpp" />
     <ClCompile Include="Obj.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="Vec2.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Boll.h" />
+    <ClInclude Include="Bot.h" />
     <ClInclude Include="Core.h" />
     <ClInclude Include="FrameRate.h" />
+    <ClInclude Include="Menu.h" />
     <ClInclude Include="Obj.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="Vec2.h" />
